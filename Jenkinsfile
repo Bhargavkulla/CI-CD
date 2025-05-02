@@ -2,25 +2,37 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY = "bhargavakulla"
-        DOCKER_IMAGE = "java-microservice"
-        DOCKER_TAG = "latest"
-        KUBERNETES_CLUSTER = "your-kubernetes-cluster"
-        KUBERNETES_NAMESPACE = "default"
-        IMAGE_NAME = "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
+        DOCKER_CREDENTIALS = 'docker_credentials'  // Set your Docker credentials ID
+        REGISTRY_URL = 'https://hub.docker.com/r/bhargavakulla/java-microservice'
+        REGISTRY_CREDENTIALS = 'bhargavakulla/******'  // Set your Docker registry credentials
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Setup Python') {
+            steps {
+                script {
+                    // Update and install required packages
+                    sh 'sudo apt-get update'
+                    sh 'sudo apt-get install -y python3 python3-pip'
+
+                    // Install dependencies globally using pip
+                    sh 'sudo pip3 install -r requirements.txt'  // Install globally to avoid missing pytest
+                }
             }
         }
 
         stage('Test with Pytest') {
             steps {
                 script {
-                    // Run Pytest tests
+                    // Verify pytest installation
+                    sh 'pip show pytest'  // Debug step to ensure pytest is installed
+                    // Run the tests
                     sh 'pytest tests/'
                 }
             }
@@ -30,7 +42,7 @@ pipeline {
             steps {
                 script {
                     // Build Docker image
-                    sh 'docker build -t ${IMAGE_NAME} .'
+                    sh 'docker build -t ${REGISTRY_URL}:latest .'
                 }
             }
         }
@@ -38,9 +50,9 @@ pipeline {
         stage('Docker Push') {
             steps {
                 script {
-                    // Login to Docker Hub and push the image
-                    sh 'docker login -u ${DOCKER_REGISTRY} -p ${DOCKER_PASSWORD}'
-                    sh 'docker push ${IMAGE_NAME}'
+                    // Push Docker image to Docker Hub
+                    sh 'docker login -u ${REGISTRY_CREDENTIALS} -p ${DOCKER_CREDENTIALS}'
+                    sh 'docker push ${REGISTRY_URL}:latest'
                 }
             }
         }
@@ -48,17 +60,17 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Deploy to Kubernetes using kubectl
-                    sh 'kubectl apply -f k8s/deployment.yaml'
-                    sh 'kubectl apply -f k8s/service.yaml'
+                    // Deployment commands (ensure kubectl is configured)
+                    sh 'kubectl apply -f deployment.yaml'
+                    sh 'kubectl apply -f service.yaml'
                 }
             }
         }
-    }
 
-    post {
-        always {
-            cleanWs()
+        stage('Post Actions') {
+            steps {
+                cleanWs()  // Clean workspace after build
+            }
         }
     }
 }
