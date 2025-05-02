@@ -13,7 +13,8 @@ pipeline {
         stage('Setup Python') {
             steps {
                 script {
-                    sh '''
+                    // Update and install python3 and pip
+                    sh '''#!/bin/bash
                     sudo apt-get update
                     sudo apt-get install -y python3 python3-pip
                     '''
@@ -24,7 +25,8 @@ pipeline {
         stage('Test with Pytest') {
             steps {
                 script {
-                    sh '''
+                    // Install dependencies and run pytest
+                    sh '''#!/bin/bash
                     pip install -r requirements.txt
                     pytest tests/
                     '''
