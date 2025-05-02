@@ -1,76 +1,84 @@
 pipeline {
     agent any
+
     environment {
-        PATH = "${env.PATH}:/var/lib/jenkins/.local/bin"
+        DOCKER_IMAGE_NAME = 'bhargavakulla/my-microservice'
+        DOCKER_REGISTRY = 'docker.io'
+        IMAGE_TAG = "${env.BUILD_ID}"
+        K8S_DEPLOYMENT = 'microservice-deployment'
+        K8S_NAMESPACE = 'default'
+        REPO_URL = 'https://github.com/Bhargavkulla/CI-CD.git'
+        GIT_CREDENTIALS = 'github-credentials' // Assuming you have credentials set in Jenkins
     }
+
     stages {
-        stage('Declarative: Checkout SCM') {
+        stage('Checkout SCM') {
             steps {
-                checkout scm
+                git credentialsId: "${GIT_CREDENTIALS}", url: "${REPO_URL}"
             }
         }
-        
+
         stage('Setup Python') {
             steps {
                 script {
-                    // Update and install python3 and pip
-                    sh '''#!/bin/bash
-                    sudo apt-get update
-                    sudo apt-get install -y python3 python3-pip
-                    '''
+                    sh 'sudo apt-get update'
+                    sh 'sudo apt-get install -y python3 python3-pip'
+                    sh 'pip install -r requirements.txt'
                 }
             }
         }
-        
+
         stage('Test with Pytest') {
             steps {
                 script {
-                    // Install dependencies and run pytest
-                    sh '''#!/bin/bash
-                    pip install -r requirements.txt
-                    pytest tests/
+                    sh 'pytest tests/'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh '''
+                        docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG} .
                     '''
                 }
             }
         }
-        
-        stage('Docker Build') {
-            when {
-                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
-            steps {
-                script {
-                    // Add your Docker build steps here
-                }
-            }
-        }
-        
+
         stage('Docker Push') {
-            when {
-                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
             steps {
                 script {
-                    // Add your Docker push steps here
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh '''
+                            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG}
+                        '''
+                    }
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
-            when {
-                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
             steps {
                 script {
-                    // Add your Kubernetes deployment steps here
+                    sh '''
+                        kubectl set image deployment/${K8S_DEPLOYMENT} ${K8S_DEPLOYMENT}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
+                    '''
                 }
             }
         }
+    }
 
-        stage('Declarative: Post Actions') {
-            steps {
-                cleanWs()
-            }
+    post {
+        always {
+            cleanWs() // Clean up the workspace
+        }
+        success {
+            echo 'Build and deployment succeeded!'
+        }
+        failure {
+            echo 'Build or deployment failed.'
         }
     }
 }
