@@ -2,30 +2,27 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_NAME = 'java-microservice'
-        DOCKER_REGISTRY = 'docker.io' // Docker Hub registry (URL prefix)
-        DOCKER_HUB_REPO = 'bhargavakulla/java-microservice' // Your Docker Hub repo name
-        IMAGE_TAG = "${env.BUILD_ID}"
-        K8S_DEPLOYMENT = 'microservice-deployment'
-        K8S_NAMESPACE = 'default'
-        REPO_URL = 'https://github.com/Bhargavkulla/CI-CD.git'
-        GIT_CREDENTIALS = 'github-credentials' // Assuming you have credentials set in Jenkins
-        GIT_BRANCH = 'main'  // Ensure this matches your repo's default branch
+        DOCKER_CREDENTIALS = 'docker_credentials'  // Set your Docker credentials ID
+        REGISTRY_URL = 'https://hub.docker.com/r/bhargavakulla/java-microservice'
+        REGISTRY_CREDENTIALS = 'bhargavakulla/******'  // Set your Docker registry credentials
     }
 
     stages {
         stage('Checkout SCM') {
             steps {
-                git credentialsId: "${GIT_CREDENTIALS}", url: "${REPO_URL}", branch: "${GIT_BRANCH}"
+                checkout scm
             }
         }
 
         stage('Setup Python') {
             steps {
                 script {
+                    // Update and install required packages
                     sh 'sudo apt-get update'
                     sh 'sudo apt-get install -y python3 python3-pip'
-                    sh 'pip install -r requirements.txt'
+
+                    // Install dependencies globally using pip
+                    sh 'sudo pip3 install -r requirements.txt'  // Install globally to avoid missing pytest
                 }
             }
         }
@@ -33,6 +30,9 @@ pipeline {
         stage('Test with Pytest') {
             steps {
                 script {
+                    // Verify pytest installation
+                    sh 'pip show pytest'  // Debug step to ensure pytest is installed
+                    // Run the tests
                     sh 'pytest tests/'
                 }
             }
@@ -41,9 +41,8 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    sh '''
-                        docker build -t ${DOCKER_REGISTRY}/${DOCKER_HUB_REPO}:${IMAGE_TAG} .
-                    '''
+                    // Build Docker image
+                    sh 'docker build -t ${REGISTRY_URL}:latest .'
                 }
             }
         }
@@ -51,12 +50,9 @@ pipeline {
         stage('Docker Push') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'docker_credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh '''
-                            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_HUB_REPO}:${IMAGE_TAG}
-                        '''
-                    }
+                    // Push Docker image to Docker Hub
+                    sh 'docker login -u ${REGISTRY_CREDENTIALS} -p ${DOCKER_CREDENTIALS}'
+                    sh 'docker push ${REGISTRY_URL}:latest'
                 }
             }
         }
@@ -64,23 +60,17 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh '''
-                        kubectl set image deployment/${K8S_DEPLOYMENT} ${K8S_DEPLOYMENT}=${DOCKER_REGISTRY}/${DOCKER_HUB_REPO}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
-                    '''
+                    // Deployment commands (ensure kubectl is configured)
+                    sh 'kubectl apply -f deployment.yaml'
+                    sh 'kubectl apply -f service.yaml'
                 }
             }
         }
-    }
 
-    post {
-        always {
-            cleanWs() // Clean up the workspace
-        }
-        success {
-            echo 'Build and deployment succeeded!'
-        }
-        failure {
-            echo 'Build or deployment failed.'
+        stage('Post Actions') {
+            steps {
+                cleanWs()  // Clean workspace after build
+            }
         }
     }
 }
