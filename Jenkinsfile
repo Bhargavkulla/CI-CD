@@ -15,6 +15,7 @@ pipeline {
         stage('Setup Python') {
             steps {
                 script {
+                    // Explicit closure syntax added here
                     sh 'sudo apt-get update'
                     sh 'sudo apt-get install -y python3 python3-pip'
                     sh 'sudo pip3 install -r requirements.txt'
@@ -25,6 +26,7 @@ pipeline {
         stage('Test with Pytest') {
             steps {
                 script {
+                    // Explicit closure syntax added here
                     sh 'pytest tests/'
                 }
             }
@@ -33,6 +35,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
+                    // Explicit closure syntax added here
                     sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
