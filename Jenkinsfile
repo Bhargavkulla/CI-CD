@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         DOCKER_IMAGE_NAME = 'java-microservice'
-        DOCKER_REGISTRY = 'docker.io' // Docker Hub registry
-        DOCKER_HUB_REPO = 'bhargavakulla/java-microservice' // Update to your Docker Hub repo
+        DOCKER_REGISTRY = 'docker.io' // Docker Hub registry (URL prefix)
+        DOCKER_HUB_REPO = 'bhargavakulla/java-microservice' // Your Docker Hub repo name
         IMAGE_TAG = "${env.BUILD_ID}"
         K8S_DEPLOYMENT = 'microservice-deployment'
         K8S_NAMESPACE = 'default'
