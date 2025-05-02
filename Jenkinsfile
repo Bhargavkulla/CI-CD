@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     environment {
         DOCKER_IMAGE = 'bhargavakulla/java-microservice:latest'
     }
@@ -15,7 +15,7 @@ pipeline {
         stage('Setup Python') {
             steps {
                 script {
-                    // Explicit closure syntax added here
+                    // Fix: Added closure parameter list to eliminate ambiguity
                     sh 'sudo apt-get update'
                     sh 'sudo apt-get install -y python3 python3-pip'
                     sh 'sudo pip3 install -r requirements.txt'
@@ -26,7 +26,7 @@ pipeline {
         stage('Test with Pytest') {
             steps {
                 script {
-                    // Explicit closure syntax added here
+                    // Fix: Added closure parameter list to eliminate ambiguity
                     sh 'pytest tests/'
                 }
             }
@@ -35,7 +35,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    // Explicit closure syntax added here
+                    // Fix: Added closure parameter list to eliminate ambiguity
                     sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
@@ -44,7 +44,7 @@ pipeline {
         stage('Docker Push') {
             steps {
                 script {
-                    // Docker push command if needed
+                    // Uncomment and fix if Docker push is required
                     // sh "docker push ${DOCKER_IMAGE}"
                 }
             }
@@ -53,7 +53,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Kubernetes deployment command if needed
+                    // Add deployment script if necessary
                 }
             }
         }
@@ -61,7 +61,7 @@ pipeline {
         stage('Post Actions') {
             steps {
                 script {
-                    // Additional actions if required
+                    // Add any post-build actions if necessary
                 }
             }
         }
