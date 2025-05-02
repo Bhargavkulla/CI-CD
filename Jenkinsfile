@@ -1,80 +1,74 @@
 pipeline {
     agent any
-
     environment {
-        // Define Docker registry credentials
-        DOCKER_REGISTRY = 'docker.io'
-        DOCKER_IMAGE = 'bhargavakulla/java-microservice'
-        DOCKER_CREDENTIALS = 'docker_credentials'
-        GITHUB_CREDENTIALS = 'github-credentials'
+        PATH = "${env.PATH}:/var/lib/jenkins/.local/bin"
     }
-
     stages {
-        stage('Checkout SCM') {
+        stage('Declarative: Checkout SCM') {
             steps {
                 checkout scm
             }
         }
-
+        
         stage('Setup Python') {
             steps {
-                // Install Python and pip (if not already installed)
-                sh 'sudo apt-get update'
-                sh 'sudo apt-get install -y python3 python3-pip'
+                script {
+                    sh '''
+                    sudo apt-get update
+                    sudo apt-get install -y python3 python3-pip
+                    '''
+                }
             }
         }
-
+        
         stage('Test with Pytest') {
             steps {
                 script {
-                    // Install dependencies from requirements.txt
-                    sh 'pip install -r requirements.txt'
-                    
-                    // Add the directory where pip installs executables to PATH
-                    sh 'export PATH=$PATH:/var/lib/jenkins/.local/bin'
-
-                    // Run the pytest command
-                    sh 'pytest tests/'
+                    sh '''
+                    pip install -r requirements.txt
+                    pytest tests/
+                    '''
                 }
             }
         }
-
+        
         stage('Docker Build') {
+            when {
+                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    // Build the Docker image
-                    sh 'docker build -t ${DOCKER_IMAGE} .'
+                    // Add your Docker build steps here
                 }
             }
         }
-
+        
         stage('Docker Push') {
+            when {
+                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    // Log in to Docker registry
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS) {
-                        // Push the image to Docker registry
-                        sh 'docker push ${DOCKER_IMAGE}'
-                    }
+                    // Add your Docker push steps here
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
+            when {
+                expression { return currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    // Deploy to Kubernetes (ensure kubectl is installed and configured)
-                    sh 'kubectl apply -f k8s/deployment.yaml'
-                    sh 'kubectl apply -f k8s/service.yaml'
+                    // Add your Kubernetes deployment steps here
                 }
             }
         }
-    }
 
-    post {
-        always {
-            cleanWs() // Clean up workspace
+        stage('Declarative: Post Actions') {
+            steps {
+                cleanWs()
+            }
         }
     }
 }
-
