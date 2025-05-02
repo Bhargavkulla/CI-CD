@@ -30,6 +30,9 @@ pipeline {
                     // Install dependencies from requirements.txt
                     sh 'pip install -r requirements.txt'
                     
+                    // Add the directory where pip installs executables to PATH
+                    sh 'export PATH=$PATH:/var/lib/jenkins/.local/bin'
+
                     // Run the pytest command
                     sh 'pytest tests/'
                 }
@@ -74,3 +77,4 @@ pipeline {
         }
     }
 }
+
